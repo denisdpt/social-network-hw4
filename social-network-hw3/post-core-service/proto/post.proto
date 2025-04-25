@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package post;
+
+service PostService {
+  rpc ViewPost(ViewPostRequest) returns (ViewPostResponse);
+  rpc LikePost(LikePostRequest) returns (LikePostResponse);
+  rpc CommentPost(CommentPostRequest) returns (CommentPostResponse);
+  rpc GetComments(GetCommentsRequest) returns (GetCommentsResponse);
+}
+
+message ViewPostRequest {
+  string client_id = 1;
+  string post_id = 2;
+}
+
+message ViewPostResponse {
+  bool success = 1;
+}
+
+message LikePostRequest {
+  string client_id = 1;
+  string post_id = 2;
+}
+
+message LikePostResponse {
+  bool success = 1;
+}
+
+message CommentPostRequest {
+  string client_id = 1;
+  string post_id = 2;
+  string text = 3;
+}
+
+message CommentPostResponse {
+  string comment_id = 1;
+}
+
+message GetCommentsRequest {
+  string post_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message Comment {
+  string comment_id = 1;
+  string client_id = 2;
+  string text = 3;
+  string timestamp = 4;
+}
+
+message GetCommentsResponse {
+  repeated Comment comments = 1;
+  int32 total_pages = 2;
+}

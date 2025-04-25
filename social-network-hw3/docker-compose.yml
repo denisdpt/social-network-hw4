@@ -1,0 +1,126 @@
+version: '3.8'
+services:
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - USER_SERVICE_URL=http://user-service:8001
+    depends_on:
+      - user-service
+    networks:
+      - app-network
+
+  api-gateway-posts:
+    build: ./api-gateway-posts
+    ports:
+      - "8001:8001"
+    environment:
+      - GRPC_POST_SERVICE_HOST=post-service
+      - GRPC_POST_SERVICE_PORT=50051
+    depends_on:
+      - post-service
+    networks:
+      - app-network
+
+  post-service:
+    build: ./post_service
+    ports:
+      - "50051:50051"
+    networks:
+      - app-network
+
+  user-service:
+    build: ./user_service
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/users_db
+      - SECRET_KEY=your_secret_key
+      - ALGORITHM=HS256
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  db:
+    image: postgres:13-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: users_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - app-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    networks:
+      - app-network
+
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - app-network
+
+  post-core-service:
+    build: ./post-core-service
+    ports:
+      - "50052:50051"
+    depends_on:
+      - kafka
+    networks:
+      - app-network
+
+  post-api-gateway:
+    build:
+      context: .
+      dockerfile: post-api-gateway/Dockerfile
+    container_name: post-api-gateway
+    ports:
+      - "8003:8003"
+    depends_on:
+      - post-core-service
+    volumes:
+      - ./post-api-gateway:/app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+
+volumes:
+  pgdata:
